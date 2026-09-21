@@ -39,6 +39,9 @@ body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",
 .tabNav{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid #ddd6ca;overflow-x:auto}
 .tabBtn{font:inherit;background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;font-size:14.5px;font-weight:700;color:#8a8477;cursor:pointer;white-space:nowrap}
 .tabBtn.active{color:#222;border-bottom-color:#222}
+.scrollFab{position:fixed;right:16px;bottom:24px;display:none;flex-direction:column;gap:8px;z-index:50}
+.scrollFab.show{display:flex}
+.scrollFab button{width:44px;height:44px;border-radius:50%;border:none;background:#222;color:#fff;font-size:16px;box-shadow:0 2px 8px #0003;cursor:pointer}
 .tabPanel{display:none}
 .tabPanel.active{display:block}
 
@@ -472,26 +475,51 @@ body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",
   <h2>☁️ 구글드라이브 연동 (모바일에서 보기용)</h2>
   <p class="small">사진·영상을 구글드라이브에도 함께 올려서, 모바일 보기 화면에서 로그인 후 볼 수 있게 합니다. 클라이언트 ID / API 키 / 폴더 ID는 브라우저에만 저장됩니다.</p>
   <div class="aiFieldRow" id="gdriveConfigRow">
-    <label>OAuth 클라이언트 ID
-      <input type="text" id="gdriveClientId" placeholder="xxxxx.apps.googleusercontent.com">
-    </label>
-    <label>API 키
-      <input type="password" id="gdriveApiKey" placeholder="AIza...">
-    </label>
-    <label>업로드할 구글드라이브 폴더 ID
-      <input type="text" id="gdriveFolderId" placeholder="드라이브에서 폴더 열었을 때 주소 끝부분">
-    </label>
+    <div id="gdriveConfigSummary" class="aiKeySummary" style="display:none;">
+      <span>☁️ 구글드라이브 설정값이 저장되어 있어요</span>
+      <button id="gdriveConfigEditBtn" class="secondary" type="button">변경</button>
+      <button id="gdriveConfigClearBtnSummary" class="secondary" type="button">값 삭제</button>
+    </div>
+    <div id="gdriveConfigInputWrap">
+      <label>OAuth 클라이언트 ID
+        <input type="text" id="gdriveClientId" placeholder="xxxxx.apps.googleusercontent.com">
+      </label>
+      <label>API 키
+        <input type="password" id="gdriveApiKey" placeholder="AIza...">
+      </label>
+      <label>업로드할 구글드라이브 폴더 ID
+        <input type="text" id="gdriveFolderId" placeholder="드라이브에서 폴더 열었을 때 주소 끝부분">
+      </label>
+      <span style="display:flex; gap:6px;">
+        <button id="gdriveConfigCollapseBtn" class="secondary" type="button" style="display:none;">접기</button>
+        <button id="gdriveConfigClearBtn" class="secondary" type="button">값 삭제</button>
+      </span>
+    </div>
   </div>
   <div id="gdriveStatusBox" class="folderStatusBox st-none" style="margin-top:10px;">
     <span id="gdriveStatusText">아직 구글 계정에 로그인하지 않았습니다.</span>
     <button id="gdriveLoginBtn" type="button">구글 로그인</button>
   </div>
   <p class="small" style="margin-top:8px;">로그인은 브라우저를 새로고침하면 풀립니다 — 인스타 가져오기/백필 작업을 하기 전에 이 버튼으로 다시 로그인해주세요. 값 입력 후에는 다른 곳을 클릭하면 자동 저장됩니다.</p>
+
+  <hr style="margin:16px 0;border:none;border-top:1px solid #eee;">
+  <h2 style="font-size:14px;">🔄 기존에 저장된 사진·영상을 구글드라이브로 백필</h2>
+  <p class="small">앞으로 새로 저장되는 것과 별개로, <b>이미 저장 폴더에 있는 기존 게시물</b>의 사진·영상 중 아직 드라이브에 없는 것만 찾아서 올립니다. 중간에 멈춰도(브라우저를 닫아도) 이미 올라간 건 건너뛰고 이어서 할 수 있어요. 수백~수천 개면 시간이 꽤 걸릴 수 있으니, 켜둔 채로 기다려주세요.</p>
+  <div class="footerRow">
+    <button id="gdriveBackfillBtn" type="button">🔄 백필 시작</button>
+    <span id="gdriveBackfillStatus" class="small"></span>
+  </div>
+  <div id="gdriveBackfillLog" class="small" style="max-height:220px;overflow:auto;margin-top:8px;"></div>
 </div>
 
   </div><!-- /tabPanel-aikey -->
 
 </div><!-- /appWrap -->
+
+<div id="scrollFab" class="scrollFab">
+  <button id="scrollFabTop" type="button" title="맨 위로">▲</button>
+  <button id="scrollFabBottom" type="button" title="맨 아래로">▼</button>
+</div>
 
 <script>
 /* =========================================================================
@@ -594,6 +622,12 @@ const GDrive = (function(){
   const statusBox = document.getElementById('gdriveStatusBox');
   const statusText = document.getElementById('gdriveStatusText');
   const loginBtn = document.getElementById('gdriveLoginBtn');
+  const summaryEl = document.getElementById('gdriveConfigSummary');
+  const inputWrapEl = document.getElementById('gdriveConfigInputWrap');
+  const collapseBtn = document.getElementById('gdriveConfigCollapseBtn');
+  const editBtn = document.getElementById('gdriveConfigEditBtn');
+  const clearBtn = document.getElementById('gdriveConfigClearBtn');
+  const clearBtnSummary = document.getElementById('gdriveConfigClearBtnSummary');
   if(!clientIdEl) return; // 이 탭이 없는 빌드일 경우 방어
 
   const cfg = GDrive.getConfig();
@@ -604,7 +638,29 @@ const GDrive = (function(){
   function saveCfg(){
     GDrive.setConfig({ clientId: clientIdEl.value.trim(), apiKey: apiKeyEl.value.trim(), folderId: folderIdEl.value.trim() });
   }
-  [clientIdEl, apiKeyEl, folderIdEl].forEach(el=> el.addEventListener('blur', saveCfg));
+  /* 세 값이 모두 입력되어 있으면 한 줄 요약으로 접어서, 값 자체가 화면에 보이지 않게 함.
+     "변경"을 누르면 펼쳐지고, "접기"를 누르면 다시 접힌다. */
+  function hasAllValues(){
+    return !!(clientIdEl.value.trim() && apiKeyEl.value.trim() && folderIdEl.value.trim());
+  }
+  function updateConfigCollapse(collapse){
+    const hasAll = hasAllValues();
+    const shouldCollapse = (collapse !== undefined) ? collapse : hasAll;
+    summaryEl.style.display = (shouldCollapse && hasAll) ? 'flex' : 'none';
+    inputWrapEl.style.display = (shouldCollapse && hasAll) ? 'none' : '';
+    collapseBtn.style.display = (!shouldCollapse && hasAll) ? 'inline-block' : 'none';
+  }
+  function clearConfig(){
+    clientIdEl.value = ''; apiKeyEl.value = ''; folderIdEl.value = '';
+    GDrive.setConfig({ clientId:'', apiKey:'', folderId:'' });
+    updateConfigCollapse(false);
+  }
+  [clientIdEl, apiKeyEl, folderIdEl].forEach(el=> el.addEventListener('change', ()=>{ saveCfg(); updateConfigCollapse(); }));
+  editBtn.addEventListener('click', ()=> updateConfigCollapse(false));
+  collapseBtn.addEventListener('click', ()=>{ saveCfg(); updateConfigCollapse(true); });
+  clearBtn.addEventListener('click', clearConfig);
+  clearBtnSummary.addEventListener('click', clearConfig);
+  updateConfigCollapse();
 
   function refreshStatus(){
     if(GDrive.isConnected()){
@@ -629,6 +685,7 @@ const GDrive = (function(){
 })();
 
 const AppFolder = (function(){
+  // (백필 기능은 AppFolder 정의가 끝난 뒤, 파일 맨 아래에서 연결합니다 — 검색용 마커: GDRIVE_BACKFILL_HOOK)
   let dirHandle = null;
   let state = 'none'; // 'none' | 'connected' | 'needs-permission' | 'denied' | 'unsupported'
   const listeners = [];
@@ -2973,6 +3030,10 @@ window.renderMore = renderMore;
     folder: document.getElementById('tabPanel-folder'),
     aikey: document.getElementById('tabPanel-aikey'),
   };
+  const scrollFab = document.getElementById('scrollFab');
+  function updateScrollFab(tabName){
+    if(scrollFab) scrollFab.classList.toggle('show', tabName==='search' || tabName==='import');
+  }
   btns.forEach(b=>{
     b.addEventListener('click', ()=>{
       btns.forEach(x=>x.classList.remove('active'));
@@ -2980,6 +3041,7 @@ window.renderMore = renderMore;
       Object.values(panels).forEach(p=>p.classList.remove('active'));
       const target = panels[b.dataset.tab];
       if(target) target.classList.add('active');
+      updateScrollFab(b.dataset.tab);
       // 다른 탭에서 저장 폴더 내용이 바뀌었을 수 있으므로, 탭에 들어올 때마다 새로 읽어온다
       if(window.__diaryApp){
         if(b.dataset.tab==='search' && window.__diaryApp.refreshSearch) window.__diaryApp.refreshSearch();
@@ -2987,6 +3049,18 @@ window.renderMore = renderMore;
       }
     });
   });
+  // 시작 시 기본 활성 탭(작성)에 맞춰 버튼 표시 상태를 맞춰둠
+  const initialActive = btns.find(b=>b.classList.contains('active'));
+  updateScrollFab(initialActive ? initialActive.dataset.tab : 'write');
+})();
+
+/* ---------- 맨 위로 / 맨 아래로 버튼 (검색 · 인스타 가져오기 탭 전용) ---------- */
+(function(){
+  const topBtn = document.getElementById('scrollFabTop');
+  const bottomBtn = document.getElementById('scrollFabBottom');
+  if(!topBtn || !bottomBtn) return;
+  topBtn.addEventListener('click', ()=> window.scrollTo({top:0, behavior:'smooth'}));
+  bottomBtn.addEventListener('click', ()=> window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'}));
 })();
 
 /* ---------- 저장 폴더 재연결 시도 (앱 전체에서 딱 한 번) ----------
@@ -2994,6 +3068,86 @@ window.renderMore = renderMore;
    등록해뒀으므로, 여기서 한 번만 재연결을 시도하면 세 탭 모두 한꺼번에 초기 상태가
    맞춰집니다. */
 AppFolder.tryReconnectOnLoad();
+
+/* =========================================================================
+   기존 게시물 사진·영상 → 구글드라이브 백필
+   dbJson.posts를 훑어서 media 항목 중 driveFileId가 없는 것만 로컬 폴더에서
+   읽어 GDrive.uploadFile로 올리고, 매 게시물마다 posts.json을 로컬+드라이브에
+   즉시 다시 써서 중간에 멈춰도 이어서 할 수 있게 합니다.
+   ========================================================================= */
+(function(){
+  const btn = document.getElementById('gdriveBackfillBtn');
+  const statusEl = document.getElementById('gdriveBackfillStatus');
+  const logEl = document.getElementById('gdriveBackfillLog');
+  if(!btn) return;
+
+  function log(msg){
+    const line = document.createElement('div');
+    line.textContent = msg;
+    logEl.prepend(line);
+  }
+
+  btn.addEventListener('click', async ()=>{
+    if(AppFolder.getState()!=='connected'){ alert('먼저 📁 폴더 연결 탭에서 저장 폴더를 연결해주세요.'); return; }
+    if(!GDrive.isConfigured()){ alert('클라이언트 ID / API 키 / 폴더 ID를 먼저 모두 입력해주세요.'); return; }
+    if(!GDrive.isConnected()){ alert('먼저 위쪽의 "구글 로그인" 버튼으로 로그인해주세요.'); return; }
+
+    btn.disabled = true;
+    logEl.innerHTML = '';
+    log('백필 시작...');
+
+    const dbJson = await AppFolder.readPostsDb();
+    const root = AppFolder.getDir();
+
+    let total = 0;
+    for(const post of dbJson.posts){
+      for(const m of (post.media||[])){ if(!m.driveFileId) total++; }
+    }
+    if(total===0){
+      statusEl.textContent = '이미 모든 미디어가 드라이브에 올라가 있습니다.';
+      log('할 일 없음 — 전부 이미 올라가 있어요.');
+      btn.disabled = false;
+      return;
+    }
+    log(`올려야 할 파일 ${total}개 발견.`);
+
+    let done = 0, failed = 0;
+    for(const post of dbJson.posts){
+      let postChanged = false;
+      for(const m of (post.media||[])){
+        if(m.driveFileId) continue; // 이미 올라간 것은 건너뜀 (이어하기 지원)
+        try{
+          const fh = await AppFolder.getFileHandleByPath(root, m.storedPath);
+          const file = await fh.getFile();
+          const filename = m.storedPath.split('/').pop();
+          m.driveFileId = await GDrive.uploadFile(file, filename, file.type);
+          postChanged = true;
+          done++;
+        }catch(e){
+          failed++;
+          log(`❌ 실패: ${m.storedPath} — ${e.message}`);
+        }
+        statusEl.textContent = `진행 중... ${done+failed}/${total} (성공 ${done}, 실패 ${failed})`;
+      }
+      if(postChanged){
+        // 게시물 하나 끝날 때마다 즉시 저장 — 중간에 멈춰도 진행 상황을 잃지 않음
+        await AppFolder.writePostsDb(dbJson);
+      }
+    }
+
+    try{
+      const dbBlob = new Blob([JSON.stringify(dbJson, null, 2)], {type:'application/json'});
+      await GDrive.uploadFile(dbBlob, 'posts.json', 'application/json');
+      log('구글드라이브의 posts.json도 최신 상태로 갱신함.');
+    }catch(e){
+      log('⚠️ 구글드라이브 posts.json 최종 갱신 실패: '+e.message);
+    }
+
+    statusEl.textContent = `완료 — 성공 ${done}개, 실패 ${failed}개`;
+    log(`백필 완료 — 성공 ${done}개, 실패 ${failed}개`);
+    btn.disabled = false;
+  });
+})();
 </script>
 
 </body>
