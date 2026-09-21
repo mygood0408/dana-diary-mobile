@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>구글드라이브 연결 테스트</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; background:#faf8f5; }
+  h1 { font-size: 18px; }
+  button { padding: 10px 16px; font-size: 15px; border-radius: 8px; border: 1px solid #ccc; background: #fff; margin: 6px 0; width: 100%; }
+  button.primary { background: #4285f4; color: #fff; border: none; }
+  #log { white-space: pre-wrap; background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 12px; font-size: 13px; margin-top: 12px; min-height: 100px; }
+  .file-item { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #eee; }
+  .file-item img { width:40px; height:40px; object-fit:cover; border-radius:6px; background:#eee; }
+  input { width: 100%; padding: 8px; margin: 6px 0; box-sizing: border-box; }
+</style>
+</head>
+<body>
+
+<h1>🧪 구글드라이브 연결 테스트</h1>
+<p style="font-size:13px;color:#666">아래 두 값을 채우고, "구글 로그인" → "파일 불러오기" 순서로 눌러보세요.</p>
+
+<label style="font-size:13px;">OAuth 클라이언트 ID</label>
+<input id="clientId" placeholder="xxxxx.apps.googleusercontent.com">
+
+<label style="font-size:13px;">API 키</label>
+<input id="apiKey" placeholder="AIza...">
+
+<label style="font-size:13px;">폴더 ID (구글드라이브에서 폴더 열었을 때 주소창 마지막 부분)</label>
+<input id="folderId" placeholder="예: 1AbCDefGhIJKlmnoPQRstuv">
+
+<button id="btnLogin" class="primary">1. 구글 로그인</button>
+<button id="btnList" disabled>2. 이 폴더의 파일 목록 불러오기</button>
+
+<div id="log">아직 로그인 안 함.</div>
+<div id="files"></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+let accessToken = null;
+const logEl = document.getElementById('log');
+const filesEl = document.getElementById('files');
+function log(msg){ logEl.textContent = msg; }
+
+document.getElementById('btnLogin').onclick = () => {
+  const clientId = document.getElementById('clientId').value.trim();
+  if(!clientId){ alert('클라이언트 ID를 먼저 입력하세요'); return; }
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: 'https://www.googleapis.com/auth/drive.readonly',
+    callback: (resp) => {
+      if(resp.error){ log('로그인 실패: ' + JSON.stringify(resp)); return; }
+      accessToken = resp.access_token;
+      log('✅ 로그인 성공! 이제 2번 버튼을 눌러보세요.');
+      document.getElementById('btnList').disabled = false;
+    },
+  });
+  client.requestAccessToken();
+};
+
+document.getElementById('btnList').onclick = async () => {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const folderId = document.getElementById('folderId').value.trim();
+  if(!apiKey || !folderId){ alert('API 키와 폴더 ID를 입력하세요'); return; }
+  log('불러오는 중...');
+  filesEl.innerHTML = '';
+  try{
+    const url = `https://www.googleapis.com/drive/v3/files?q='${encodeURIComponent(folderId)}'+in+parents&fields=files(id,name,mimeType,thumbnailLink)&key=${apiKey}`;
+    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
+    const data = await res.json();
+    if(data.error){ log('❌ 오류: ' + JSON.stringify(data.error, null, 2)); return; }
+    log(`✅ 파일 ${data.files.length}개 찾음`);
+    data.files.forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'file-item';
+      div.innerHTML = `<img src="${f.thumbnailLink || ''}" onerror="this.style.display='none'"><span>${f.name}</span>`;
+      filesEl.appendChild(div);
+    });
+  }catch(e){
+    log('❌ 예외 발생: ' + e.message);
+  }
+};
+</script>
+</body>
+</html>
