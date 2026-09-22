@@ -588,7 +588,10 @@ const GDrive = (function(){
       headers: { Authorization: 'Bearer '+accessToken }
     });
     const listData = await listRes.json();
-    if(listData.error) throw new Error('드라이브 조회 오류: '+listData.error.message);
+    if(listData.error){
+      if(listRes.status===401){ accessToken=null; throw new Error('AUTH_EXPIRED: 로그인이 만료되었습니다. 다시 로그인해주세요.'); }
+      throw new Error('드라이브 조회 오류: '+listData.error.message);
+    }
     const existingId = listData.files && listData.files[0] && listData.files[0].id;
 
     const metadata = existingId ? {} : { name: filename, parents: [c.folderId] };
@@ -607,7 +610,10 @@ const GDrive = (function(){
       body: form
     });
     const data = await res.json();
-    if(data.error) throw new Error('드라이브 업로드 오류: '+data.error.message);
+    if(data.error){
+      if(res.status===401){ accessToken=null; throw new Error('AUTH_EXPIRED: 로그인이 만료되었습니다. 다시 로그인해주세요.'); }
+      throw new Error('드라이브 업로드 오류: '+data.error.message);
+    }
     return data.id;
   }
 
@@ -681,6 +687,7 @@ const GDrive = (function(){
       alert('구글 로그인 실패: '+e.message);
     }
   });
+  document.addEventListener('gdrive:tokenExpired', refreshStatus);
   refreshStatus();
 })();
 
@@ -3111,7 +3118,8 @@ AppFolder.tryReconnectOnLoad();
     }
     log(`올려야 할 파일 ${total}개 발견.`);
 
-    let done = 0, failed = 0;
+    let done = 0, failed = 0, authExpired = false;
+    outer:
     for(const post of dbJson.posts){
       let postChanged = false;
       for(const m of (post.media||[])){
@@ -3124,6 +3132,12 @@ AppFolder.tryReconnectOnLoad();
           postChanged = true;
           done++;
         }catch(e){
+          if(String(e.message).startsWith('AUTH_EXPIRED')){
+            authExpired = true;
+            if(postChanged) await AppFolder.writePostsDb(dbJson);
+            log('⏸️ 로그인이 만료되어 중단했습니다. 남은 파일은 건드리지 않았어요.');
+            break outer;
+          }
           failed++;
           log(`❌ 실패: ${m.storedPath} — ${e.message}`);
         }
@@ -3133,6 +3147,14 @@ AppFolder.tryReconnectOnLoad();
         // 게시물 하나 끝날 때마다 즉시 저장 — 중간에 멈춰도 진행 상황을 잃지 않음
         await AppFolder.writePostsDb(dbJson);
       }
+    }
+
+    if(authExpired){
+      document.dispatchEvent(new CustomEvent('gdrive:tokenExpired'));
+      statusEl.textContent = `중단됨(로그인 만료) — 이번에 성공 ${done}개. 위에서 "구글 로그인"을 다시 누른 뒤 "🔄 백필 시작"을 다시 눌러 이어서 진행해주세요.`;
+      log(`중단됨 — 성공 ${done}개 (실패로 집계하지 않음, 나머지는 다음 실행에서 이어서 처리됩니다)`);
+      btn.disabled = false;
+      return;
     }
 
     try{
