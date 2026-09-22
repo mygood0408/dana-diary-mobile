@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>단아 육아일기 (모바일 보기)</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#f3f1ec;color:#222}
+.wrap{max-width:480px;margin:0 auto;padding:14px 14px 60px}
+h1{font-size:19px;margin:6px 0 12px}
+.card{background:#fff;border-radius:16px;padding:14px;margin:10px 0;box-shadow:0 2px 10px #0001}
+.card h2{font-size:14px;margin:0 0 8px;color:#444}
+.small{font-size:12.5px;color:#666}
+label{display:block;font-size:13px;margin:8px 0 4px;color:#555}
+input,select{width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px}
+button{font:inherit;background:#222;color:#fff;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700}
+button.secondary{background:#eee;color:#333;font-weight:600}
+button:disabled{opacity:.5}
+.statusBox{border-radius:12px;padding:10px 14px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:8px;border:1px solid transparent}
+.statusBox.st-none{background:#fbf3e0;border-color:#e3c37a;color:#7a5c15}
+.statusBox.st-ok{background:#eaf4ea;border-color:#9dc79d;color:#2d5a2d}
+.statusBox.st-err{background:#fbeaea;border-color:#e3a0a0;color:#7a2020}
+.summaryRow{display:flex;align-items:center;gap:8px;font-size:13px;color:#666;flex-wrap:wrap}
+.postItem{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #eee;cursor:pointer}
+.postItem:last-child{border-bottom:none}
+.postThumb{width:60px;height:60px;border-radius:10px;object-fit:cover;background:#eee;flex:none}
+.postThumb.novid{display:flex;align-items:center;justify-content:center;font-size:22px;color:#aaa}
+.postMeta{min-width:0}
+.postTitle{font-size:14px;font-weight:700;margin:0 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.postDate{font-size:12px;color:#999}
+.postSnippet{font-size:12.5px;color:#777;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.place-badge{display:inline-block;background:#f0ece2;color:#6b5b3a;border-radius:20px;padding:2px 10px;font-size:12px;margin:2px 4px 2px 0}
+.placeChecks{max-height:180px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:8px;margin-top:6px}
+.placeChecks label{display:flex;align-items:center;gap:6px;font-size:13px;margin:4px 0}
+.emptyMsg{text-align:center;color:#999;font-size:13px;padding:30px 0}
+/* ---- 상세보기 모달 ---- */
+.modalOverlay{position:fixed;inset:0;background:#0009;display:none;align-items:flex-end;z-index:100}
+.modalOverlay.show{display:flex}
+.modalSheet{background:#fff;width:100%;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px}
+.modalSheet h3{margin:2px 0 8px;font-size:16px}
+.modalClose{float:right;background:none;color:#999;font-size:20px;padding:0 4px;border:none}
+.mediaGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+.mediaGrid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#eee}
+.mediaGrid .vidBox{position:relative;width:100%;aspect-ratio:1;border-radius:10px;background:#eee;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
+.mediaGrid .vidBox img{position:absolute;inset:0}
+.playIcon{position:relative;z-index:1;width:40px;height:40px;border-radius:50%;background:#0008;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px}
+.bodyText{white-space:pre-wrap;font-size:14px;line-height:1.5;margin-top:10px}
+.lightbox{position:fixed;inset:0;background:#000d;display:none;align-items:center;justify-content:center;z-index:200;padding:16px}
+.lightbox.show{display:flex}
+.lightbox img,.lightbox video{max-width:100%;max-height:100%;border-radius:8px}
+.lightboxClose{position:absolute;top:16px;right:16px;background:#fff2;color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:18px}
+.scrollFab{position:fixed;right:16px;bottom:20px;display:none;flex-direction:column;gap:8px;z-index:50}
+.scrollFab.show{display:flex}
+.scrollFab button{width:44px;height:44px;border-radius:50%;border:none;background:#222;color:#fff;font-size:16px;box-shadow:0 2px 8px #0003}
+.aiKeySummary{display:flex;align-items:center;gap:8px;font-size:13px;color:#666;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📱 단아 육아일기 — 모바일 보기</h1>
+
+  <div class="card" id="configCard">
+    <h2>☁️ 구글드라이브 연결</h2>
+    <p class="small">PC 통합본에서 쓴 것과 같은 클라이언트 ID / API 키 / 폴더 ID를 입력하세요.</p>
+    <div id="cfgSummary" class="aiKeySummary" style="display:none;">
+      <span>☁️ 설정값이 저장되어 있어요</span>
+      <button id="cfgEditBtn" class="secondary" type="button">변경</button>
+      <button id="cfgClearBtnSummary" class="secondary" type="button">값 삭제</button>
+    </div>
+    <div id="cfgInputWrap">
+      <label>OAuth 클라이언트 ID<input type="text" id="clientId" placeholder="xxxxx.apps.googleusercontent.com"></label>
+      <label>API 키<input type="password" id="apiKey" placeholder="AIza..."></label>
+      <label>구글드라이브 폴더 ID<input type="text" id="folderId" placeholder="폴더 주소 끝부분"></label>
+      <span style="display:flex;gap:6px;margin-top:6px;">
+        <button id="cfgCollapseBtn" class="secondary" type="button" style="display:none;">접기</button>
+        <button id="cfgClearBtn" class="secondary" type="button">값 삭제</button>
+      </span>
+    </div>
+    <div id="statusBox" class="statusBox st-none">
+      <span id="statusText">아직 로그인하지 않았습니다.</span>
+      <button id="loginBtn" type="button">구글 로그인</button>
+    </div>
+  </div>
+
+  <div class="card" id="filterCard" style="display:none;">
+    <h2>🔍 검색 · 필터</h2>
+    <label>키워드 (쉼표로 여러 개 = AND)<input type="text" id="kwInput" placeholder="예: 발레, 생일"></label>
+    <label>연월<select id="monthSelect"><option value="">전체</option></select></label>
+    <div class="summaryRow" style="margin-top:8px;">
+      <button id="placeToggleBtn" class="secondary" type="button">📍 다녀온 곳으로 필터</button>
+      <span id="resultCount" class="small"></span>
+    </div>
+    <div id="placeChecks" class="placeChecks" style="display:none;"></div>
+  </div>
+
+  <div class="card">
+    <h2>🗂️ 게시물 목록</h2>
+    <div id="postList"></div>
+    <div id="emptyMsg" class="emptyMsg" style="display:none;">구글 로그인 후 게시물을 불러와주세요.</div>
+  </div>
+</div>
+
+<div id="scrollFab" class="scrollFab">
+  <button id="scrollTop" type="button">▲</button>
+  <button id="scrollBottom" type="button">▼</button>
+</div>
+
+<div id="detailModal" class="modalOverlay">
+  <div class="modalSheet">
+    <button class="modalClose" id="detailClose" type="button">✕</button>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<div id="lightbox" class="lightbox">
+  <button class="lightboxClose" id="lightboxClose" type="button">✕</button>
+  <div id="lightboxContent"></div>
+</div>
+
+<script>
+/* =========================================================================
+   구글드라이브 연결 + posts.json 로딩
+   ========================================================================= */
+const LS_CLIENT='mv_clientId', LS_APIKEY='mv_apiKey', LS_FOLDER='mv_folderId';
+let accessToken = null;
+let allPosts = [];       // posts.json의 posts 배열 (test- 더미 제외)
+let placeKeywordCounts = new Map();
+let selectedPlaces = new Set();
+const thumbCache = new Map(); // driveFileId -> objectURL (썸네일/이미지 blob 캐시)
+
+const $ = id => document.getElementById(id);
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---- 설정값 입력칸 접기/펼치기 ---- */
+(function(){
+  const clientIdEl=$('clientId'), apiKeyEl=$('apiKey'), folderIdEl=$('folderId');
+  const summaryEl=$('cfgSummary'), inputWrapEl=$('cfgInputWrap');
+  const collapseBtn=$('cfgCollapseBtn'), editBtn=$('cfgEditBtn');
+  const clearBtn=$('cfgClearBtn'), clearBtnSummary=$('cfgClearBtnSummary');
+
+  clientIdEl.value = localStorage.getItem(LS_CLIENT)||'';
+  apiKeyEl.value = localStorage.getItem(LS_APIKEY)||'';
+  folderIdEl.value = localStorage.getItem(LS_FOLDER)||'';
+
+  function saveCfg(){
+    localStorage.setItem(LS_CLIENT, clientIdEl.value.trim());
+    localStorage.setItem(LS_APIKEY, apiKeyEl.value.trim());
+    localStorage.setItem(LS_FOLDER, folderIdEl.value.trim());
+  }
+  function hasAll(){ return !!(clientIdEl.value.trim() && apiKeyEl.value.trim() && folderIdEl.value.trim()); }
+  function updateCollapse(collapse){
+    const should = (collapse!==undefined) ? collapse : hasAll();
+    summaryEl.style.display = (should && hasAll()) ? 'flex' : 'none';
+    inputWrapEl.style.display = (should && hasAll()) ? 'none' : '';
+    collapseBtn.style.display = (!should && hasAll()) ? 'inline-block' : 'none';
+  }
+  function clearCfg(){
+    clientIdEl.value=''; apiKeyEl.value=''; folderIdEl.value='';
+    localStorage.removeItem(LS_CLIENT); localStorage.removeItem(LS_APIKEY); localStorage.removeItem(LS_FOLDER);
+    updateCollapse(false);
+  }
+  [clientIdEl,apiKeyEl,folderIdEl].forEach(el=>el.addEventListener('change', ()=>{ saveCfg(); updateCollapse(); }));
+  editBtn.addEventListener('click', ()=>updateCollapse(false));
+  collapseBtn.addEventListener('click', ()=>{ saveCfg(); updateCollapse(true); });
+  clearBtn.addEventListener('click', clearCfg);
+  clearBtnSummary.addEventListener('click', clearCfg);
+  updateCollapse();
+})();
+
+function getCfg(){
+  return {
+    clientId: localStorage.getItem(LS_CLIENT)||'',
+    apiKey: localStorage.getItem(LS_APIKEY)||'',
+    folderId: localStorage.getItem(LS_FOLDER)||'',
+  };
+}
+
+function setStatus(text, kind){
+  $('statusBox').className = 'statusBox ' + (kind||'st-none');
+  $('statusText').textContent = text;
+}
+
+$('loginBtn').addEventListener('click', ()=>{
+  const cfg = getCfg();
+  if(!cfg.clientId || !cfg.apiKey || !cfg.folderId){ alert('클라이언트 ID / API 키 / 폴더 ID를 먼저 모두 입력해주세요.'); return; }
+  if(typeof google === 'undefined' || !google.accounts){ alert('구글 로그인 스크립트를 아직 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+  const tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: cfg.clientId,
+    scope: 'https://www.googleapis.com/auth/drive.readonly',
+    callback: async (resp)=>{
+      if(resp.error){ setStatus('로그인 실패: '+JSON.stringify(resp), 'st-err'); return; }
+      accessToken = resp.access_token;
+      setStatus('로그인 성공! 게시물을 불러오는 중...', 'st-ok');
+      await loadPostsFromDrive();
+    },
+  });
+  tokenClient.requestAccessToken();
+});
+
+async function driveFetchJson(url){
+  const res = await fetch(url, { headers:{ Authorization:'Bearer '+accessToken } });
+  const data = await res.json();
+  if(data.error){
+    if(res.status===401){ accessToken=null; throw new Error('AUTH_EXPIRED'); }
+    throw new Error(data.error.message||'드라이브 오류');
+  }
+  return data;
+}
+
+/* driveFileId의 실제 파일 바이트를 인증된 요청으로 받아와 blob object URL로 변환(캐시) */
+async function getDriveBlobUrl(fileId){
+  if(thumbCache.has(fileId)) return thumbCache.get(fileId);
+  const cfg = getCfg();
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${cfg.apiKey}`, {
+    headers:{ Authorization:'Bearer '+accessToken }
+  });
+  if(!res.ok){
+    if(res.status===401){ accessToken=null; throw new Error('AUTH_EXPIRED'); }
+    throw new Error('파일을 불러오지 못했습니다 (HTTP '+res.status+')');
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  thumbCache.set(fileId, url);
+  return url;
+}
+
+async function loadPostsFromDrive(){
+  try{
+    const cfg = getCfg();
+    const q = encodeURIComponent(`name='posts.json' and '${cfg.folderId}' in parents and trashed=false`);
+    const listData = await driveFetchJson(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&key=${cfg.apiKey}`);
+    const fileId = listData.files && listData.files[0] && listData.files[0].id;
+    if(!fileId){ setStatus('폴더 안에서 posts.json을 찾지 못했습니다. PC에서 한 번 저장/백필을 해서 posts.json이 올라가 있는지 확인해주세요.', 'st-err'); return; }
+
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${cfg.apiKey}`, {
+      headers:{ Authorization:'Bearer '+accessToken }
+    });
+    if(!res.ok) throw new Error('posts.json을 불러오지 못했습니다 (HTTP '+res.status+')');
+    const json = await res.json();
+    const posts = Array.isArray(json.posts) ? json.posts : [];
+    allPosts = posts.filter(p => !(p.sourceMeta && typeof p.sourceMeta.dedupeKey==='string' && p.sourceMeta.dedupeKey.startsWith('test-')));
+    allPosts.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.updatedAt||'').localeCompare(a.updatedAt||''));
+
+    setStatus(`✅ 연결됨 — 게시물 ${allPosts.length}건 불러옴`, 'st-ok');
+    $('filterCard').style.display = '';
+    rebuildMonthOptions();
+    rebuildPlaceIndex();
+    renderList();
+  }catch(e){
+    if(String(e.message).includes('AUTH_EXPIRED')){
+      setStatus('로그인이 만료되었습니다. 다시 로그인해주세요.', 'st-err');
+    } else {
+      setStatus('불러오기 실패: '+e.message, 'st-err');
+    }
+  }
+}
+
+/* =========================================================================
+   캡션 파싱 (PC 통합본의 검색 탭과 동일한 규칙)
+   ========================================================================= */
+function parseCaption(content){
+  const lines = String(content||'').split(/\r?\n/);
+  let title = '';
+  let placesText = null;
+  const remaining = [];
+  for(let i=0;i<lines.length;i++){
+    const line = lines[i];
+    if(!title && i===0 && /\d+\s*년\s*\d+\s*월\s*\d+\s*주차/.test(line)){ title = line.trim(); continue; }
+    if(placesText===null && /다녀온\s*곳/.test(line)){
+      const m = /다녀온\s*곳\s*[:：]?\s*(.*)$/.exec(line);
+      placesText = m ? m[1].trim() : '';
+      continue;
+    }
+    remaining.push(line);
+  }
+  return { title, placesText: placesText || '', body: remaining.join('\n').trim() };
+}
+function extractYearMonth(content){
+  const m = /(\d{2,4})\s*년\s*(\d{1,2})\s*월/.exec(String(content||''));
+  if(!m) return null;
+  let year = parseInt(m[1],10); if(year<100) year+=2000;
+  const month = parseInt(m[2],10);
+  if(!(month>=1 && month<=12)) return null;
+  return { year, month };
+}
+function tokenizePlaces(placesText){
+  if(!placesText || /^(없음|none|없다|\.|-)$/i.test(placesText.trim())) return [];
+  return placesText.split(/[\s#]+/).map(t=>t.trim()).filter(Boolean);
+}
+function splitTerms(raw){ return String(raw||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean); }
+
+function rebuildMonthOptions(){
+  const keys = new Set();
+  for(const p of allPosts){
+    const ym = extractYearMonth(p.content) || (p.date && /^\d{4}-\d{2}/.test(p.date) ? {year:+p.date.slice(0,4), month:+p.date.slice(5,7)} : null);
+    if(ym) keys.add(ym.year*100+ym.month);
+  }
+  const sorted = Array.from(keys).sort((a,b)=>b-a);
+  const sel = $('monthSelect');
+  sel.innerHTML = '<option value="">전체</option>' + sorted.map(k=>{
+    const y=Math.floor(k/100), m=k%100;
+    return `<option value="${k}">${y}년 ${m}월</option>`;
+  }).join('');
+}
+
+function rebuildPlaceIndex(){
+  placeKeywordCounts = new Map();
+  for(const p of allPosts){
+    const {placesText} = parseCaption(p.content);
+    for(const t of tokenizePlaces(placesText)){
+      placeKeywordCounts.set(t, (placeKeywordCounts.get(t)||0)+1);
+    }
+  }
+  const sorted = Array.from(placeKeywordCounts.entries()).sort((a,b)=>b[1]-a[1]);
+  $('placeChecks').innerHTML = sorted.map(([t,c])=>`
+    <label><input type="checkbox" data-place="${escapeHtml(t)}"> ${escapeHtml(t)} (${c})</label>
+  `).join('') || '<span class="small">다녀온 곳 정보가 없습니다.</span>';
+  $('placeChecks').querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) selectedPlaces.add(cb.dataset.place); else selectedPlaces.delete(cb.dataset.place);
+      renderList();
+    });
+  });
+}
+$('placeToggleBtn').addEventListener('click', ()=>{
+  const box = $('placeChecks');
+  box.style.display = box.style.display==='none' ? '' : 'none';
+});
+
+/* =========================================================================
+   목록 렌더링 + 필터
+   ========================================================================= */
+function firstPhotoMedia(media){
+  if(!Array.isArray(media)) return null;
+  const photo = media.find(m=>m.type==='photo' && m.driveFileId);
+  if(photo) return photo;
+  return media.find(m=>m.driveFileId) || null;
+}
+
+function matchesFilters(p){
+  const {title, placesText, body} = parseCaption(p.content);
+  const kw = splitTerms($('kwInput').value);
+  if(kw.length){
+    const hay = (title+' '+body+' '+placesText).toLowerCase();
+    if(!kw.every(k=>hay.includes(k))) return false;
+  }
+  const monthVal = $('monthSelect').value;
+  if(monthVal){
+    const ym = extractYearMonth(p.content) || (p.date && /^\d{4}-\d{2}/.test(p.date) ? {year:+p.date.slice(0,4), month:+p.date.slice(5,7)} : null);
+    if(!ym || (ym.year*100+ym.month) !== parseInt(monthVal,10)) return false;
+  }
+  if(selectedPlaces.size){
+    const tokens = new Set(tokenizePlaces(placesText));
+    let hit=false;
+    for(const sp of selectedPlaces){ if(tokens.has(sp)){ hit=true; break; } }
+    if(!hit) return false;
+  }
+  return true;
+}
+
+let listRenderToken = 0;
+async function renderList(){
+  const myToken = ++listRenderToken;
+  const filtered = allPosts.filter(matchesFilters);
+  $('resultCount').textContent = `${filtered.length}건`;
+  const listEl = $('postList');
+  $('emptyMsg').style.display = filtered.length ? 'none' : 'block';
+  if(!filtered.length){ listEl.innerHTML=''; return; }
+
+  listEl.innerHTML = filtered.map((p,i)=>{
+    const {title, body} = parseCaption(p.content);
+    const displayTitle = title || (p.title || body.slice(0,30) || '(제목 없음)');
+    return `<div class="postItem" data-idx="${allPosts.indexOf(p)}">
+      <div class="postThumb novid" id="thumb-${i}">📷</div>
+      <div class="postMeta">
+        <div class="postTitle">${escapeHtml(displayTitle)}</div>
+        <div class="postDate">${escapeHtml(p.date||'')}</div>
+        <div class="postSnippet">${escapeHtml(body.slice(0,40))}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.postItem').forEach(el=>{
+    el.addEventListener('click', ()=> openDetail(allPosts[+el.dataset.idx]));
+  });
+
+  // 썸네일은 목록이 그려진 뒤 하나씩(동시 4개 제한) 채워넣는다
+  const queue = filtered.map((p,i)=>({p,i}));
+  let active = 0;
+  function runNext(){
+    if(myToken !== listRenderToken) return; // 그 사이 다른 검색으로 바뀌면 중단
+    if(!queue.length) return;
+    const {p,i} = queue.shift();
+    active++;
+    const m = firstPhotoMedia(p.media);
+    const el = document.getElementById('thumb-'+i);
+    (async ()=>{
+      try{
+        if(m && m.driveFileId){
+          const url = await getDriveBlobUrl(m.driveFileId);
+          if(el && myToken===listRenderToken){
+            el.outerHTML = `<img class="postThumb" id="thumb-${i}" src="${url}">`;
+          }
+        }
+      }catch(e){ /* 썸네일 실패는 무시하고 기본 아이콘 유지 */ }
+      active--;
+      runNext();
+    })();
+  }
+  for(let k=0;k<4;k++) runNext();
+}
+
+$('kwInput').addEventListener('input', ()=> renderList());
+$('monthSelect').addEventListener('change', ()=> renderList());
+
+/* =========================================================================
+   상세보기 (모달)
+   ========================================================================= */
+function openDetail(p){
+  const {title, placesText, body} = parseCaption(p.content);
+  const placeBadges = tokenizePlaces(placesText).map(t=>`<span class="place-badge">📍 ${escapeHtml(t)}</span>`).join('');
+  const media = Array.isArray(p.media) ? p.media.filter(m=>m.driveFileId) : [];
+
+  $('detailBody').innerHTML = `
+    <h3>${escapeHtml(title || p.title || '(제목 없음)')}</h3>
+    <div class="small">${escapeHtml(p.date||'')}</div>
+    <div>${placeBadges}</div>
+    <div class="mediaGrid" id="detailMediaGrid"></div>
+    <div class="bodyText">${escapeHtml(body)}</div>
+  `;
+  $('detailModal').classList.add('show');
+
+  const grid = $('detailMediaGrid');
+  media.forEach((m, idx)=>{
+    const box = document.createElement('div');
+    if(m.type==='video'){
+      box.className='vidBox';
+      box.innerHTML = `<span class="playIcon">▶</span>`;
+      box.addEventListener('click', ()=> openLightboxVideo(m.driveFileId));
+    } else {
+      box.className='vidBox';
+      box.addEventListener('click', ()=> openLightboxImage(m.driveFileId));
+    }
+    grid.appendChild(box);
+    getDriveBlobUrl(m.driveFileId).then(url=>{
+      const img = document.createElement('img');
+      img.src = url;
+      box.prepend(img);
+    }).catch(()=>{ box.innerHTML += '<span class="small">불러오기 실패</span>'; });
+  });
+}
+$('detailClose').addEventListener('click', ()=> $('detailModal').classList.remove('show'));
+$('detailModal').addEventListener('click', (e)=>{ if(e.target.id==='detailModal') $('detailModal').classList.remove('show'); });
+
+async function openLightboxImage(fileId){
+  $('lightboxContent').innerHTML = '불러오는 중...';
+  $('lightbox').classList.add('show');
+  try{
+    const url = await getDriveBlobUrl(fileId);
+    $('lightboxContent').innerHTML = `<img src="${url}">`;
+  }catch(e){ $('lightboxContent').innerHTML = '불러오기 실패: '+escapeHtml(e.message); }
+}
+async function openLightboxVideo(fileId){
+  $('lightboxContent').innerHTML = '영상을 불러오는 중... (용량에 따라 시간이 걸릴 수 있어요)';
+  $('lightbox').classList.add('show');
+  try{
+    const url = await getDriveBlobUrl(fileId);
+    $('lightboxContent').innerHTML = `<video src="${url}" controls autoplay playsinline></video>`;
+  }catch(e){ $('lightboxContent').innerHTML = '불러오기 실패: '+escapeHtml(e.message); }
+}
+$('lightboxClose').addEventListener('click', ()=>{ $('lightbox').classList.remove('show'); $('lightboxContent').innerHTML=''; });
+$('lightbox').addEventListener('click', (e)=>{ if(e.target.id==='lightbox'){ $('lightbox').classList.remove('show'); $('lightboxContent').innerHTML=''; } });
+
+/* ---------- 맨 위로 / 맨 아래로 ---------- */
+(function(){
+  const fab = $('scrollFab');
+  window.addEventListener('scroll', ()=>{ fab.classList.toggle('show', window.scrollY>200 || document.body.scrollHeight>window.innerHeight*1.5); });
+  $('scrollTop').addEventListener('click', ()=> window.scrollTo({top:0, behavior:'smooth'}));
+  $('scrollBottom').addEventListener('click', ()=> window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'}));
+})();
+</script>
+</body>
+</html>
