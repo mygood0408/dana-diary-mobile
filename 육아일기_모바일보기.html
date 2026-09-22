@@ -42,7 +42,7 @@ button:disabled{opacity:.5}
 .modalSheet h3{margin:2px 0 8px;font-size:16px}
 .modalClose{float:right;background:none;color:#999;font-size:20px;padding:0 4px;border:none}
 .mediaGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
-.mediaGrid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#eee}
+.mediaGrid img,.mediaGrid video{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#eee}
 .mediaGrid .vidBox{position:relative;width:100%;aspect-ratio:1;border-radius:10px;background:#eee;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
 .mediaGrid .vidBox img{position:absolute;inset:0}
 .playIcon{position:relative;z-index:1;width:40px;height:40px;border-radius:50%;background:#0008;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px}
@@ -421,9 +421,13 @@ async function renderList(){
     (async ()=>{
       try{
         if(m && m.driveFileId){
-          const url = (m.type==='video') ? await getDriveVideoThumbUrl(m.driveFileId) : await getDriveBlobUrl(m.driveFileId);
+          const url = await getDriveBlobUrl(m.driveFileId);
           if(el && myToken===listRenderToken){
-            el.outerHTML = `<img class="postThumb" id="thumb-${i}" src="${url}">`;
+            if(m.type==='video'){
+              el.outerHTML = `<video class="postThumb" id="thumb-${i}" src="${url}" muted playsinline preload="metadata"></video>`;
+            } else {
+              el.outerHTML = `<img class="postThumb" id="thumb-${i}" src="${url}">`;
+            }
           }
         }
       }catch(e){ /* 썸네일 실패는 무시하고 기본 아이콘 유지 */ }
@@ -466,11 +470,16 @@ function openDetail(p){
       box.addEventListener('click', ()=> openLightboxImage(m.driveFileId));
     }
     grid.appendChild(box);
-    const thumbPromise = (m.type==='video') ? getDriveVideoThumbUrl(m.driveFileId) : getDriveBlobUrl(m.driveFileId);
-    thumbPromise.then(url=>{
-      const img = document.createElement('img');
-      img.src = url;
-      box.prepend(img);
+    getDriveBlobUrl(m.driveFileId).then(url=>{
+      if(m.type==='video'){
+        const vid = document.createElement('video');
+        vid.src = url; vid.muted = true; vid.playsInline = true; vid.preload = 'metadata';
+        box.prepend(vid);
+      } else {
+        const img = document.createElement('img');
+        img.src = url;
+        box.prepend(img);
+      }
     }).catch(()=>{ box.innerHTML += '<span class="small">미리보기 없음</span>'; });
   });
 }
