@@ -21,8 +21,11 @@
 *{box-sizing:border-box}
 body{margin:0;font-family:'Gowun Dodum',-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--text)}
 .wrap{max-width:480px;margin:0 auto;padding:14px 14px 60px}
-.appHeader{display:flex;align-items:center;gap:12px;margin:6px 0 14px}
-.appIcon{width:44px;height:44px;flex:0 0 auto;filter:drop-shadow(0 2px 4px rgba(190,140,90,.25))}
+.appHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 10px;flex-wrap:wrap}
+.titleRow{display:flex;align-items:center;gap:10px}
+.appIcon{width:38px;height:38px;flex:0 0 auto;filter:drop-shadow(0 2px 4px rgba(190,140,90,.25))}
+.headerActions{display:flex;align-items:center;gap:6px}
+.headerActions #loginBtn{padding:8px 12px;font-size:12.5px}
 .appIcon svg{width:100%;height:100%;display:block}
 h1{font-family:'Jua',sans-serif;font-weight:400;font-size:21px;margin:0;color:var(--accent-dark)}
 .appSub{font-size:12.5px;color:var(--muted);margin-top:2px}
@@ -75,49 +78,31 @@ button:disabled{opacity:.5}
 .scrollFab{position:fixed;right:16px;bottom:20px;display:none;flex-direction:column;gap:8px;z-index:50}
 .scrollFab.show{display:flex}
 .scrollFab button{width:46px;height:46px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:16px;box-shadow:0 2px 8px rgba(190,120,70,.4)}
-.aiKeySummary{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);flex-wrap:wrap}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="appHeader">
-    <div class="appIcon">
-      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="18" cy="20" r="9" fill="#cfe8f3"/>
-        <path d="M6 46c0-9 5.4-15 12-15s12 6 12 15v4H6z" fill="#cfe8f3"/>
-        <circle cx="46" cy="20" r="9" fill="#ffd6c9"/>
-        <path d="M34 46c0-9 5.4-15 12-15s12 6 12 15v4H34z" fill="#ffd6c9"/>
-        <circle cx="32" cy="30" r="7.5" fill="#ffe9a8"/>
-        <path d="M22 52c0-7.5 4.5-12.5 10-12.5S42 44.5 42 52v3H22z" fill="#ffe9a8"/>
-      </svg>
-    </div>
-    <div>
+    <div class="titleRow">
+      <div class="appIcon">
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="20" r="9" fill="#cfe8f3"/>
+          <path d="M6 46c0-9 5.4-15 12-15s12 6 12 15v4H6z" fill="#cfe8f3"/>
+          <circle cx="46" cy="20" r="9" fill="#ffd6c9"/>
+          <path d="M34 46c0-9 5.4-15 12-15s12 6 12 15v4H34z" fill="#ffd6c9"/>
+          <circle cx="32" cy="30" r="7.5" fill="#ffe9a8"/>
+          <path d="M22 52c0-7.5 4.5-12.5 10-12.5S42 44.5 42 52v3H22z" fill="#ffe9a8"/>
+        </svg>
+      </div>
       <h1>Dan-A life story</h1>
-      <div class="appSub">📱 모바일 보기</div>
+    </div>
+    <div class="headerActions">
+      <button id="loginBtn" type="button">구글 로그인</button>
     </div>
   </div>
 
-  <div class="card" id="configCard">
-    <h2>☁️ 구글드라이브 연결</h2>
-    <p class="small">PC 통합본에서 쓴 것과 같은 클라이언트 ID / API 키 / 폴더 ID를 입력하세요.</p>
-    <div id="cfgSummary" class="aiKeySummary" style="display:none;">
-      <span>☁️ 설정값이 저장되어 있어요</span>
-      <button id="cfgEditBtn" class="secondary" type="button">변경</button>
-      <button id="cfgClearBtnSummary" class="secondary" type="button">값 삭제</button>
-    </div>
-    <div id="cfgInputWrap">
-      <label>OAuth 클라이언트 ID<input type="text" id="clientId" placeholder="xxxxx.apps.googleusercontent.com"></label>
-      <label>API 키<input type="password" id="apiKey" placeholder="AIza..."></label>
-      <label>구글드라이브 폴더 ID<input type="text" id="folderId" placeholder="폴더 주소 끝부분"></label>
-      <span style="display:flex;gap:6px;margin-top:6px;">
-        <button id="cfgCollapseBtn" class="secondary" type="button" style="display:none;">접기</button>
-        <button id="cfgClearBtn" class="secondary" type="button">값 삭제</button>
-      </span>
-    </div>
-    <div id="statusBox" class="statusBox st-none">
-      <span id="statusText">아직 로그인하지 않았습니다.</span>
-      <button id="loginBtn" type="button">구글 로그인</button>
-    </div>
+  <div id="statusBox" class="statusBox st-none">
+    <span id="statusText">아직 로그인하지 않았습니다.</span>
   </div>
 
   <div class="card" id="filterCard" style="display:none;">
@@ -159,7 +144,16 @@ button:disabled{opacity:.5}
 /* =========================================================================
    구글드라이브 연결 + posts.json 로딩
    ========================================================================= */
-const LS_CLIENT='mv_clientId', LS_APIKEY='mv_apiKey', LS_FOLDER='mv_folderId';
+/* ---------- 구글드라이브 연결 정보 (고정값) ----------
+   이 값들은 비밀번호가 아닙니다 — 실제 접근 통제는 ①Google Drive 폴더 공유 설정
+   (초대한 사람만 폴더를 볼 수 있음)과 ②OAuth 동의 화면의 "테스트 사용자" 목록
+   (등록된 구글 계정만 로그인 가능)에서 걸립니다. 아래 세 값을 채워 넣으면 방문자는
+   로그인 버튼만 누르면 됩니다. PC 통합본(🔑 API키 입력 탭)에서 쓴 것과 같은 값을
+   그대로 넣어주세요. */
+const HARDCODED_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+const HARDCODED_API_KEY = 'YOUR_API_KEY';
+const HARDCODED_FOLDER_ID = 'YOUR_FOLDER_ID';
+
 let accessToken = null;
 let allPosts = [];       // posts.json의 posts 배열 (test- 더미 제외)
 let placeKeywordCounts = new Map();
@@ -172,47 +166,11 @@ function escapeHtml(s){
   return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-/* ---- 설정값 입력칸 접기/펼치기 ---- */
-(function(){
-  const clientIdEl=$('clientId'), apiKeyEl=$('apiKey'), folderIdEl=$('folderId');
-  const summaryEl=$('cfgSummary'), inputWrapEl=$('cfgInputWrap');
-  const collapseBtn=$('cfgCollapseBtn'), editBtn=$('cfgEditBtn');
-  const clearBtn=$('cfgClearBtn'), clearBtnSummary=$('cfgClearBtnSummary');
-
-  clientIdEl.value = localStorage.getItem(LS_CLIENT)||'';
-  apiKeyEl.value = localStorage.getItem(LS_APIKEY)||'';
-  folderIdEl.value = localStorage.getItem(LS_FOLDER)||'';
-
-  function saveCfg(){
-    localStorage.setItem(LS_CLIENT, clientIdEl.value.trim());
-    localStorage.setItem(LS_APIKEY, apiKeyEl.value.trim());
-    localStorage.setItem(LS_FOLDER, folderIdEl.value.trim());
-  }
-  function hasAll(){ return !!(clientIdEl.value.trim() && apiKeyEl.value.trim() && folderIdEl.value.trim()); }
-  function updateCollapse(collapse){
-    const should = (collapse!==undefined) ? collapse : hasAll();
-    summaryEl.style.display = (should && hasAll()) ? 'flex' : 'none';
-    inputWrapEl.style.display = (should && hasAll()) ? 'none' : '';
-    collapseBtn.style.display = (!should && hasAll()) ? 'inline-block' : 'none';
-  }
-  function clearCfg(){
-    clientIdEl.value=''; apiKeyEl.value=''; folderIdEl.value='';
-    localStorage.removeItem(LS_CLIENT); localStorage.removeItem(LS_APIKEY); localStorage.removeItem(LS_FOLDER);
-    updateCollapse(false);
-  }
-  [clientIdEl,apiKeyEl,folderIdEl].forEach(el=>el.addEventListener('change', ()=>{ saveCfg(); updateCollapse(); }));
-  editBtn.addEventListener('click', ()=>updateCollapse(false));
-  collapseBtn.addEventListener('click', ()=>{ saveCfg(); updateCollapse(true); });
-  clearBtn.addEventListener('click', clearCfg);
-  clearBtnSummary.addEventListener('click', clearCfg);
-  updateCollapse();
-})();
-
 function getCfg(){
   return {
-    clientId: localStorage.getItem(LS_CLIENT)||'',
-    apiKey: localStorage.getItem(LS_APIKEY)||'',
-    folderId: localStorage.getItem(LS_FOLDER)||'',
+    clientId: HARDCODED_CLIENT_ID,
+    apiKey: HARDCODED_API_KEY,
+    folderId: HARDCODED_FOLDER_ID,
   };
 }
 
