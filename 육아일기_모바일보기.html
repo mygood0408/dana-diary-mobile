@@ -229,6 +229,25 @@ async function getDriveBlobUrl(fileId){
   return url;
 }
 
+/* 영상 파일은 그 자체를 <img>로 보여줄 수 없으므로, 구글드라이브가 영상에도 자동으로
+   만들어주는 정지화면 썸네일(thumbnailLink)을 따로 요청해서 보여준다. */
+async function getDriveVideoThumbUrl(fileId){
+  const cacheKey = 'vthumb:'+fileId;
+  if(thumbCache.has(cacheKey)) return thumbCache.get(cacheKey);
+  const cfg = getCfg();
+  const meta = await driveFetchJson(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink&key=${cfg.apiKey}`);
+  if(!meta.thumbnailLink) throw new Error('썸네일이 아직 없습니다');
+  const res = await fetch(meta.thumbnailLink, { headers:{ Authorization:'Bearer '+accessToken } });
+  if(!res.ok){
+    if(res.status===401){ accessToken=null; throw new Error('AUTH_EXPIRED'); }
+    throw new Error('썸네일을 불러오지 못했습니다 (HTTP '+res.status+')');
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  thumbCache.set(cacheKey, url);
+  return url;
+}
+
 async function loadPostsFromDrive(){
   try{
     const cfg = getCfg();
@@ -402,7 +421,7 @@ async function renderList(){
     (async ()=>{
       try{
         if(m && m.driveFileId){
-          const url = await getDriveBlobUrl(m.driveFileId);
+          const url = (m.type==='video') ? await getDriveVideoThumbUrl(m.driveFileId) : await getDriveBlobUrl(m.driveFileId);
           if(el && myToken===listRenderToken){
             el.outerHTML = `<img class="postThumb" id="thumb-${i}" src="${url}">`;
           }
@@ -447,11 +466,12 @@ function openDetail(p){
       box.addEventListener('click', ()=> openLightboxImage(m.driveFileId));
     }
     grid.appendChild(box);
-    getDriveBlobUrl(m.driveFileId).then(url=>{
+    const thumbPromise = (m.type==='video') ? getDriveVideoThumbUrl(m.driveFileId) : getDriveBlobUrl(m.driveFileId);
+    thumbPromise.then(url=>{
       const img = document.createElement('img');
       img.src = url;
       box.prepend(img);
-    }).catch(()=>{ box.innerHTML += '<span class="small">불러오기 실패</span>'; });
+    }).catch(()=>{ box.innerHTML += '<span class="small">미리보기 없음</span>'; });
   });
 }
 $('detailClose').addEventListener('click', ()=> $('detailModal').classList.remove('show'));
