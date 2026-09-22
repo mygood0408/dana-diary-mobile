@@ -257,7 +257,13 @@ async function loadPostsFromDrive(){
     const json = await res.json();
     const posts = Array.isArray(json.posts) ? json.posts : [];
     allPosts = posts.filter(p => !(p.sourceMeta && typeof p.sourceMeta.dedupeKey==='string' && p.sourceMeta.dedupeKey.startsWith('test-')));
-    allPosts.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.updatedAt||'').localeCompare(a.updatedAt||''));
+    allPosts.sort((a,b)=>{
+      const ka = titleSortKey(a), kb = titleSortKey(b);
+      if(ka!=null && kb!=null && ka!==kb) return kb-ka;
+      if(ka!=null && kb==null) return -1;
+      if(ka==null && kb!=null) return 1;
+      return (b.date||'').localeCompare(a.date||'') || (b.updatedAt||'').localeCompare(a.updatedAt||'');
+    });
 
     setStatus(`✅ 연결됨 — 게시물 ${allPosts.length}건 불러옴`, 'st-ok');
     $('filterCard').style.display = '';
@@ -300,6 +306,18 @@ function extractYearMonth(content){
   const month = parseInt(m[2],10);
   if(!(month>=1 && month<=12)) return null;
   return { year, month };
+}
+/* 제목의 "○○년 ○월 ○주차"를 정렬키로 씀 (게시일이 아니라 실제 글 내용 시점 순서) */
+function titleSortKey(post){
+  const m = /(\d{2,4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*주차/.exec(String(post.content||''));
+  if(m){
+    let year = parseInt(m[1],10); if(year<100) year+=2000;
+    const month = parseInt(m[2],10), week = parseInt(m[3],10);
+    if(month>=1 && month<=12) return year*10000 + month*100 + week;
+  }
+  const ym = extractYearMonth(post.content);
+  if(ym) return ym.year*10000 + ym.month*100;
+  return null;
 }
 function tokenizePlaces(placesText){
   if(!placesText || /^(없음|none|없다|\.|-)$/i.test(placesText.trim())) return [];
